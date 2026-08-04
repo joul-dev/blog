@@ -1,0 +1,54 @@
+baseURL = "https://joul.dev/"
+languageCode = "en-us"
+title = "Joul"
+theme = "PaperMod"
+
+enableRobotsTXT = true
+
+[pagination]
+pagerSize = 10
+
+[params]
+description = "Building AI inference products mostly solo. Real numbers, real costs, real mistakes."
+author = "Joul"
+defaultTheme = "auto"
+ShowReadingTime = true
+ShowShareButtons = false
+ShowCodeCopyButtons = true
+ShowRssButtonInSectionTermList = true
+
+[params.homeInfoParams]
+Title = "Hey, I'm Joul 👋"
+Content = """
+I run three connected AI products: **[gen-image.com](https://gen-image.com)** (B2C image & video generation), **[imference.com](https://imference.com)** (multi-model inference API), and **[Runqy](https://runqy.com)** (open-source Go task queue powering both).
+
+I'm more operator than engineer — I ship fast with AI assistance and share what that actually looks like here: GPU economics, spot-instance orchestration, moderation at scale, and running a profitable AI business without a big team.
+"""
+
+[[params.socialIcons]]
+name = "github"
+url = "https://github.com/joul-dev"
+
+[[params.socialIcons]]
+name = "x"
+url = "https://x.com/joul_dev"
+
+[[params.socialIcons]]
+name = "rss"
+url = "https://joul.dev/index.xml"
+
+[menu]
+[[menu.main]]
+identifier = "posts"
+name = "Posts"
+url = "/posts/"
+weight = 10
+
+[[menu.main]]
+identifier = "about"
+name = "About"
+url = "/about/"
+weight = 20
+
+[markup.highlight]
+style = "monokai"
