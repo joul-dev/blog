@@ -34,6 +34,10 @@ name = "x"
 url = "https://x.com/joul_dev"
 
 [[params.socialIcons]]
+name = "bluesky"
+url = "https://bsky.app/profile/joul.dev"
+
+[[params.socialIcons]]
 name = "rss"
 url = "https://joul.dev/index.xml"
 
