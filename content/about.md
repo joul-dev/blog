@@ -14,4 +14,4 @@ I'm more operator than engineer: I handle product, infrastructure, billing, supp
 
 This blog is where I share what that actually looks like — real numbers, real costs, real mistakes.
 
-Find me on [GitHub](https://github.com/joul-dev) and [X](https://x.com/joul_dev).
+Find me on [GitHub](https://github.com/joul-dev), [X](https://x.com/joul_dev) and [Bluesky](https://bsky.app/profile/joul.dev)
