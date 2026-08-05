@@ -17,7 +17,7 @@ While researching where local AI inference is actually popular, I kept running i
 
 So the math looked like this: potential upside — access to one of the largest local-inference communities in the world; cost — an afternoon. I don't speak a word of Chinese. I did it anyway.
 
-[Imference Desktop](link) is a local-first image generation app. There isn't that much text in it — buttons, labels, settings, error messages. I asked Claude to translate the locale file. That's the part everyone imagines is hard. It isn't.
+[Imference Desktop](https://imference.com/desktop) is a local-first image generation app. There isn't that much text in it — buttons, labels, settings, error messages. I asked Claude to translate the locale file. That's the part everyone imagines is hard. It isn't.
 
 ![Imference Desktop — the same main screen in English (top) and Chinese (bottom)](app-en-zh.png)
 *Same screen, two audiences — English on top, Chinese below.*
@@ -57,5 +57,3 @@ AI has collapsed the cost of localization. What used to require an agency, a bud
 - The translation is the cheap part. The verification pipeline and the public honesty are what make it shippable. My Chinese README says it plainly: translated with AI assistance by a dev who doesn't speak Chinese — corrections welcome via PR. That one line turns my biggest weakness into a contribution funnel.
 
 The asymmetry is what matters: an afternoon of work for access to a market I couldn't otherwise touch. Even if it only ever brings a handful of users and a few translation-fixing PRs, it already paid for itself — it found a bug my own eyes never would have.
-
-*[Addendum slot — 3 weeks later: X stars from China, Y issues in Chinese, Z translation corrections received.]*
