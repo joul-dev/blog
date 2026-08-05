@@ -17,6 +17,11 @@ ShowShareButtons = false
 ShowCodeCopyButtons = true
 ShowRssButtonInSectionTermList = true
 
+[params.plausible]
+domain = "joul.dev"
+# extensions = ".outbound-links"      # e.g. ".outbound-links.file-downloads"
+# src = "https://stats.example.com/js/script.js"   # self-hosted or proxied
+
 [params.homeInfoParams]
 Title = "Hey, I'm Joul 👋"
 Content = """

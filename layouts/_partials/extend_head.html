@@ -1,0 +1,9 @@
+{{- /* Overrides the theme's empty extend_head.html — injected into <head> on every page. */ -}}
+
+{{- /* Plausible Analytics — production builds only, so `hugo server` never sends events. */ -}}
+{{- with site.Params.plausible }}
+{{- if hugo.IsProduction | or (eq site.Params.env "production") }}
+{{- $src := .src | default (printf "https://plausible.io/js/script%s.js" (.extensions | default "")) }}
+<script defer data-domain="{{ .domain }}" src="{{ $src }}"></script>
+{{- end }}
+{{- end }}
