@@ -1,6 +1,6 @@
 ---
 title: "I translated my app into Chinese. I don't speak Chinese."
-date: 2026-08-XX
+date: 2026-08-05
 description: "An afternoon of AI-assisted localization, a verification pipeline for a language I can't read — and the bug it found in my English app."
 tags: ["i18n", "ai-assisted-development", "indie-dev", "imference"]
 cover:
