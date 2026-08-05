@@ -17,7 +17,7 @@ While researching where local AI inference is actually popular, I kept running i
 
 So the math looked like this: potential upside — access to one of the largest local-inference communities in the world; cost — an afternoon. I don't speak a word of Chinese. I did it anyway.
 
-[Imference Desktop](https://imference.com/desktop) is a local-first image generation app. There isn't that much text in it — buttons, labels, settings, error messages. I asked Claude to translate the locale file. That's the part everyone imagines is hard. It isn't.
+[Imference Desktop](https://github.com/Publikey/imference-desktop) is a local-first image generation app. There isn't that much text in it — buttons, labels, settings, error messages. I asked Claude to translate the locale file. That's the part everyone imagines is hard. It isn't.
 
 ![Imference Desktop — the same main screen in English (top) and Chinese (bottom)](app-en-zh.png)
 *Same screen, two audiences — English on top, Chinese below.*
