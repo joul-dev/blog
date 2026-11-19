@@ -3,7 +3,7 @@ title: "My autoscaler rented a machine every hour, forever"
 date: 2026-11-19
 description: "A month of renting GPUs automatically on Vast.ai and RunPod: hosts that never boot, offers that no longer exist, alerts that ping-pong, and queue priorities that did nothing."
 tags: ["ai-infrastructure", "runqy", "gpu", "autoscaling", "task-queue"]
-draft: true
+draft: false
 cover:
   image: "gpu-warehouse.webp"
   alt: "Robot arms placing graphics cards into rows of cardboard boxes on a conveyor belt in a dark warehouse, under a wall clock"
