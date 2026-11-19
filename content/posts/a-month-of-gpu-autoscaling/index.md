@@ -4,6 +4,9 @@ date: 2026-11-19
 description: "A month of renting GPUs automatically on Vast.ai and RunPod: hosts that never boot, offers that no longer exist, alerts that ping-pong, and queue priorities that did nothing."
 tags: ["ai-infrastructure", "runqy", "gpu", "autoscaling", "task-queue"]
 draft: true
+cover:
+  image: "gpu-warehouse.webp"
+  alt: "Robot arms placing graphics cards into rows of cardboard boxes on a conveyor belt in a dark warehouse, under a wall clock"
 ---
 
 For a long time I didn't need autoscaling. There wasn't enough volume to justify it.
