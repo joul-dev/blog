@@ -6,68 +6,74 @@ tags: ["ai-infrastructure", "runqy", "gpu", "autoscaling", "task-queue"]
 draft: true
 ---
 
-On October 16 I shipped GPU autoscaling in [runqy](https://github.com/Publikey/runqy), our open-source task queue: when work arrives on a queue, the server rents a machine on Vast.ai or RunPod, and gives it back when it goes idle. Two weeks into production, one queue had rented 24 machines in a row that never ran a single task. Each one was billed for a full boot timeout.
+For a long time I didn't need autoscaling. There wasn't enough volume to justify it.
 
-This post is the list of things the marketplace taught me between v0.3.0 and v0.4.6. Most of them are not about scaling policy. They are about what "renting a GPU" actually means when the host is a stranger's computer.
+Then the volume grew, and at certain hours some queues got very long. A fixed set of machines is either too small at the peak or too big the rest of the day, and I was tired of choosing.
 
-TODO(Joul): one or two sentences on why we needed autoscaling in the first place (what the fleet looked like before, what was costing too much or waiting too long).
+So on October 16 I shipped GPU autoscaling in [runqy](https://github.com/Publikey/runqy), our open-source task queue. Work arrives on a queue, the server rents a machine on Vast.ai or RunPod, and gives it back when it goes idle. I thought the hard part would be the policy: when to scale up, when to scale down.
 
-## The tests passed, the API returned 404
+It wasn't. The hard part is that "renting a GPU" on a marketplace means borrowing a stranger's computer, and strangers' computers are weird. Here is what a month of that taught me.
 
-Before the first real rental I checked the Vast.ai provider against the live API. The offer search called an endpoint that answers 404. Every provisioning attempt would have failed. The unit tests were green, because the fake server in the tests reproduced the same wrong endpoints as the code.
+## My tests were green and the API said 404
 
-The GPU filter had the same kind of problem: `RTX_3060`, the spelling shown in Vast's docs, matches no offer. Their CLI converts the underscore client-side. The API wants `RTX 3060`.
+Before spending a cent, I checked my Vast.ai code against the live API. The offer search called an endpoint that answers 404. Every single rental would have failed.
 
-RunPod had its own surprise. I did not send a volume size, so RunPod would have created its default 20 GB persistent volume for every pod, and billed it. A hidden default on a billing API is the kind of thing you only find by reading the reference line by line before spending money.
+The unit tests passed, of course. I had written a fake Vast.ai server for them, and my fake server made exactly the same mistake as my code. I had tested my own misunderstanding against itself, and it agreed with me.
+
+The GPU filter was the same story in miniature. Vast's docs write `RTX_3060`. That matches nothing. Their CLI quietly turns the underscore into a space before calling the API, and the API wants `RTX 3060`.
+
+RunPod had a quieter trap. I didn't send a volume size, so RunPod was going to create its default 20 GB persistent volume for every pod, and bill it. I only caught it because I read the API reference line by line before the first rental.
 
 ## Four rentals, four dead hosts
 
-The first real Vast.ai rental landed on a machine in China that never started the worker image. Pulling several GB from ghcr.io is slow or blocked there. I added country filters and a minimum download speed (offers down to 7 Mb/s exist).
+My first real Vast.ai rental landed on a machine in China. It never started the worker image: pulling several GB from ghcr.io is slow or blocked there. Fair enough. I added country filters and a minimum download speed (there are offers at 7 Mb/s, if you enjoy waiting).
 
-The second landed in Japan and failed with a Docker daemon write error on the host. It was also the cheapest matching offer, so after the backoff the autoscaler would have rented the same broken machine again. The provider now remembers which machine each instance landed on, and excludes a host whose container never started for 24 hours.
+The second landed in Japan and died on a Docker daemon write error. Not my code, not my image, just a broken host. And here is the cruel part: it was the cheapest offer. After the retry delay, my autoscaler would have looked at the market, picked the cheapest offer, and rented the same broken machine again. Cheap and broken go together more often than you'd hope. The provider now remembers where each instance landed and avoids a host whose container never started for 24 hours.
 
-Three more rentals on unverified hosts failed on the host side: registry blocked, Docker storage error, GPU not attachable. Verified hosts only became the default.
+Three more rentals failed on the host side: registry blocked, Docker storage error, GPU that couldn't be attached to the container. All three were unverified hosts. Verified-only became the default that day.
 
-On RunPod, the first rental failed with "no instances currently available": the single GPU type I had configured was out of stock. Then my CUDA version filter excluded every host, because it matches exact versions and the API rejects the values recent hosts actually report. Without the filter, the same request got a card at once. Both providers now take a list of acceptable GPUs instead of one name.
+RunPod was politer about it. The first rental just said "no instances currently available": the one GPU type I had asked for was out of stock. Then my CUDA version filter excluded every host on the platform, because it matches exact versions and the API rejects the versions recent hosts actually report. I removed the filter and got a card instantly. Both providers now take a list of acceptable GPUs instead of a single name, because on a marketplace "the one I want" is often "the one nobody has".
 
 ## A machine every hour, forever
 
-On staging I saw the obvious failure first: a queue whose machines never got a ready worker rented a new one every boot timeout, forever. I added an exponential backoff, capped at one hour.
+The failure I was most afraid of showed up on staging first. A queue whose machines never got a working worker rented a new machine at every boot timeout. Forever. With a real provider, that is a machine you pay for on every cycle, to do nothing.
 
-That cap is the bug in the title. In production, a queue whose instances never became ready rented one machine per hour, indefinitely. 24 in a row on one queue before I looked. TODO(Joul): what was actually wrong on that queue (image, code, host class?) and roughly what it cost.
+My first fix was an exponential backoff capped at one hour. It looked reasonable. It still meant one doomed machine per hour, indefinitely, for as long as nobody noticed.
 
-Since v0.4.4, after five boot failures in a row the autoscaler suspends provisioning for that queue for 24 hours and says so in an alert. `runqy autoscale resume <queue>` lifts it once the cause is fixed. A backoff is the right answer to a provider hiccup. It is the wrong answer to a broken image, which will be exactly as broken in an hour.
+The thing I had missed is that there are two very different failures hiding behind "the machine didn't boot". If the host is broken, try another one quickly. If my image is broken, it will be exactly as broken in an hour, and tomorrow, and next week. A backoff is patience, and patience doesn't fix a bad image.
 
-Two related lessons from the same weeks:
+So now, after five boot failures in a row, the autoscaler stops renting for that queue for 24 hours and sends an alert saying so. When I've fixed the cause, `runqy autoscale resume <queue>` wakes it up.
 
-- **The advertised download speed is the host's own speed test.** A host passing my filter was too slow in practice to finish booting, and nothing stopped the next search from renting it again. A boot timeout now blacklists the host for 24 hours too.
-- **The search index lags behind rentals.** The cheapest offer can stay listed after someone else took it. Renting it fails, and the next attempt picked the same dead offer again. This hit twice in a row on a 48 GB queue, where offers are few. The fix (skip the offer, try the next one in the same call) is merged and ships in the next release.
+The marketplace kept a few more lessons for later:
 
-I also had to make failures readable. A failed machine is destroyed, and its logs with it, so the server now saves them first. 200 lines turned out to be too few: one Python traceback through a deep model stack is about a hundred lines, and it was printed twice.
+- **The advertised download speed is the host's own speed test.** A host that passed my filter was too slow to finish booting, and nothing stopped the next search from picking it again. A boot timeout now blacklists the host for 24 hours.
+- **The cheapest offer may not exist anymore.** The search index lags behind rentals, so an offer can stay listed after someone else took it. Renting it fails, and my code retried the same ghost. It happened twice in a row on a 48 GB queue, where offers are rare. The fix is merged and ships in the next release.
+- **A destroyed machine takes its logs with it.** So the server saves them first. I started with the last 200 lines. That turned out to be one Python traceback through a deep model stack, printed twice, and nothing about what led to it.
 
 ## The queue was lying to the autoscaler
 
-An autoscaler is only as good as the signals it reads, and several of mine were wrong.
+This is the part I didn't expect. An autoscaler reads signals from the queue, and building one is a very effective way to find out which of those signals were wrong all along.
 
-**Priorities did nothing.** I found this while preparing a low-priority sub-queue. The worker built its queue list once from a Go map, so each worker polled its sub-queues in a random order fixed at startup. `BRPOP` serves the first non-empty key, so the weights had no effect at all. Priorities had been a documented feature the whole time. They are now redrawn for every task, with an optional strict mode.
+**Priorities did nothing.** I found this while preparing a low-priority sub-queue. The worker built its queue list once, from a Go map, so each worker polled its sub-queues in a random order decided at startup. Redis serves the first non-empty queue in the list. The weights were never read by anything. Priorities were a documented feature, with numbers people had chosen on purpose, and none of it did anything.
 
-**A dead process looked like a healthy queue.** When the Python process of a worker crashed, the worker kept taking tasks and failed each one in milliseconds. Nothing pending, low latency, fresh heartbeat: no alert fired, and the autoscaler saw no reason to rent a replacement. Meanwhile every task burnt its retries. A worker whose process is down now leaves tasks pending, so latency grows and the triggers react.
+**A dead process looked like a healthy queue.** When a worker's Python process crashed, the worker kept taking tasks and failed each one in milliseconds. From the outside: nothing pending, low latency, fresh heartbeat. A perfect queue. No alert fired, the autoscaler saw no reason to help, and every task quietly burnt its retries. A worker whose process is down now leaves tasks alone, so they wait, latency grows, and somebody (or something) reacts.
 
-**Rented boxes have bad clocks.** A task could finish normally, deliver its image, then run a second time. Lease expiry used each host's local clock, and any worker could judge another worker's lease. A rented machine whose clock ran ahead moved running tasks to retry. Leases now use the Redis server clock, the one clock every worker shares.
+**Rented boxes have bad clocks.** A task could finish normally, deliver its image, and then run a second time. Lease expiry used each host's local clock, and any worker could judge any other worker's lease. A rented machine with a clock running ahead decided its neighbours' tasks had expired. Leases now use the Redis server clock, the only one everybody shares.
 
-**Scale-down cut tasks off.** Destroying an idle machine is easy. Destroying one that just picked up a task is a failed generation for a user. Since v0.4.0 the server drains the worker first and destroys the machine once it reports drained.
+**Scale-down cut tasks off.** Destroying an idle machine is easy. Destroying one that picked up a task half a second ago is someone's generation failing for no reason they'll ever understand. The server now asks the worker to drain first, and destroys the machine once it says it's done.
 
-Alerts needed the same treatment. A latency hovering around its threshold sent a FIRING / RESOLVED pair every few minutes. A firing alert now resolves only after its condition has stayed clear for five minutes.
+Alerts needed the same care. A latency hovering around its threshold sent me a FIRING email, then RESOLVED, then FIRING, every few minutes. I had built a very expensive way to teach myself to ignore my inbox. An alert now resolves only after things have stayed calm for five minutes.
 
 ## What I'd tell myself a month ago
 
-- Read the provider's API reference before the first rental, and make the test doubles follow the real response shapes. A fake server that agrees with your code proves nothing.
-- Only destroy what you created. Runqy names every instance with a `runqy-` prefix and refuses to destroy anything else, because the same account also runs machines I started by hand.
-- Separate "the host is broken" from "my image is broken". The first deserves a quick retry on another machine. The second deserves a full stop.
-- Never trust a marketplace's metadata about itself: advertised bandwidth, listed offers, GPU names.
+Read the provider's API reference before the first rental, and make your fake server follow the real responses. A fake that agrees with your code proves nothing.
 
-The last release, v0.4.6, is the first one that is about policy instead of damage control: a sub-queue with `priority: 0` is served only by spare capacity, and can be left out of the scale-up and idle triggers, so background work never rents a machine and never keeps one alive.
+Only destroy what you created. Runqy names every instance with a `runqy-` prefix and refuses to touch anything else, because the same account also runs production machines that were started by hand, and I would like to keep them.
 
-TODO(Joul): a closing number if you have one. How many machines the autoscaler rents on a normal day now, or what the GPU bill looks like compared to before.
+Don't trust what a marketplace says about itself. Bandwidth, availability, GPU names: all of it is a claim, and you find out by renting.
+
+And expect the autoscaler to audit everything underneath it. Most of this month went into fixing the queue, not the scaling.
+
+The latest release, v0.4.6, is the first one that is about policy instead of damage control: a sub-queue with `priority: 0` is served only by spare capacity, and can be left out of the scale-up and idle triggers, so background work never rents a machine and never keeps one alive. It took a month to get to the feature I thought I was building on day one.
 
 The autoscaling guide is at [runqy.com/docs](https://runqy.com/docs/guides/autoscaling/).
