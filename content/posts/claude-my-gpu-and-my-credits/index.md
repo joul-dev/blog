@@ -3,7 +3,7 @@ title: "I gave Claude my GPU and my credits. Here are the rules."
 date: 2026-11-19
 description: "What it takes to let an AI agent generate images on your machine and spend your money in the cloud: no silent paid retries, a 60-second wall, and tool descriptions that do the job of a UI."
 tags: ["mcp", "ai-agents", "imference", "indie-dev"]
-draft: true
+draft: false
 cover:
   image: "robot-coin.webp"
   alt: "A small white and orange robot on a desk holding up a gold coin, next to an open PC with a glowing graphics card and a closed wallet"
